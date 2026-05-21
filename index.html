@@ -42,8 +42,50 @@
       <span class="hero-title__line">Almas Fariz</span>
       <span class="hero-title__line hero-title__line--accent">Atsiruddin</span>
     </h1>
-    <a href="#" class="cta-button" role="button">Contact Me</a>
+    <div class="hero-actions">
+      <a href="#" class="cta-button">Contact Me</a>
+      <button type="button" class="cta-button" id="play-ttt-btn" aria-haspopup="dialog">
+        Play Tic Tac Toe with me
+      </button>
+    </div>
   </main>
+
+  <!-- Tic Tac Toe modal -->
+  <div id="game-modal" class="game-modal" hidden aria-hidden="true">
+    <div
+      class="game-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="game-title"
+    >
+      <button type="button" class="game-close" aria-label="Close game">&times;</button>
+
+      <h2 id="game-title" class="game-title">Tic Tac Toe</h2>
+      <p class="game-subtitle">You <span class="mark mark--you">X</span> vs Almas <span class="mark mark--almas">O</span></p>
+
+      <div class="scoreboard" aria-label="Scoreboard">
+        <p class="scoreboard__heading">Scoreboard</p>
+        <p class="scoreboard__row">You: <span id="score-you">0</span></p>
+        <p class="scoreboard__row">Almas: <span id="score-almas">0</span></p>
+      </div>
+
+      <p id="game-status" class="game-status" aria-live="polite">Your turn — make the first move.</p>
+
+      <div id="ttt-board" class="ttt-board" role="grid" aria-label="Tic tac toe board">
+        <button type="button" class="ttt-cell" data-index="0" aria-label="Cell 1"></button>
+        <button type="button" class="ttt-cell" data-index="1" aria-label="Cell 2"></button>
+        <button type="button" class="ttt-cell" data-index="2" aria-label="Cell 3"></button>
+        <button type="button" class="ttt-cell" data-index="3" aria-label="Cell 4"></button>
+        <button type="button" class="ttt-cell" data-index="4" aria-label="Cell 5"></button>
+        <button type="button" class="ttt-cell" data-index="5" aria-label="Cell 6"></button>
+        <button type="button" class="ttt-cell" data-index="6" aria-label="Cell 7"></button>
+        <button type="button" class="ttt-cell" data-index="7" aria-label="Cell 8"></button>
+        <button type="button" class="ttt-cell" data-index="8" aria-label="Cell 9"></button>
+      </div>
+
+      <button type="button" class="cta-button game-reset-btn" id="game-reset-btn">New Game</button>
+    </div>
+  </div>
 
   <script src="script.js"></script>
 </body>

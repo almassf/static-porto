@@ -267,3 +267,277 @@
     if (animationId) cancelAnimationFrame(animationId);
   });
 })();
+
+/**
+ * Tic Tac Toe — visitor (X) vs unbeatable Almas bot (O)
+ * Minimax AI, scoreboard persisted in localStorage
+ */
+(function () {
+  "use strict";
+
+  const PLAYER = "X";
+  const ALMAS = "O";
+  const STORAGE_KEY = "almas-ttt-scores";
+  const WIN_LINES = [
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8],
+    [0, 3, 6],
+    [1, 4, 7],
+    [2, 5, 8],
+    [0, 4, 8],
+    [2, 4, 6],
+  ];
+
+  const modal = document.getElementById("game-modal");
+  const playBtn = document.getElementById("play-ttt-btn");
+  const closeBtn = document.querySelector(".game-close");
+  const resetBtn = document.getElementById("game-reset-btn");
+  const boardEl = document.getElementById("ttt-board");
+  const statusEl = document.getElementById("game-status");
+  const scoreYouEl = document.getElementById("score-you");
+  const scoreAlmasEl = document.getElementById("score-almas");
+  const cells = boardEl ? [...boardEl.querySelectorAll(".ttt-cell")] : [];
+
+  if (!modal || !playBtn || !boardEl || cells.length !== 9) return;
+
+  let board = Array(9).fill("");
+  let gameOver = false;
+  let waitingForBot = false;
+  let scores = loadScores();
+
+  /* ---- Score persistence ---- */
+  function loadScores() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          you: Number(parsed.you) || 0,
+          almas: Number(parsed.almas) || 0,
+        };
+      }
+    } catch (_) {
+      /* ignore corrupt storage */
+    }
+    return { you: 0, almas: 0 };
+  }
+
+  function saveScores() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(scores));
+  }
+
+  function renderScores() {
+    scoreYouEl.textContent = String(scores.you);
+    scoreAlmasEl.textContent = String(scores.almas);
+  }
+
+  /* ---- Win / draw detection ---- */
+  function getWinner(b) {
+    for (const [a, c, d] of WIN_LINES) {
+      if (b[a] && b[a] === b[c] && b[a] === b[d]) return b[a];
+    }
+    return null;
+  }
+
+  function isDraw(b) {
+    return b.every((cell) => cell !== "") && !getWinner(b);
+  }
+
+  function getWinningLine(b) {
+    for (const line of WIN_LINES) {
+      const [a, c, d] = line;
+      if (b[a] && b[a] === b[c] && b[a] === b[d]) return line;
+    }
+    return null;
+  }
+
+  /* ---- Unbeatable minimax (Almas = O) ---- */
+  function minimax(b, isMaximizing) {
+    const winner = getWinner(b);
+    if (winner === ALMAS) return 10;
+    if (winner === PLAYER) return -10;
+    if (isDraw(b)) return 0;
+
+    if (isMaximizing) {
+      let best = -Infinity;
+      for (let i = 0; i < 9; i++) {
+        if (b[i] === "") {
+          b[i] = ALMAS;
+          best = Math.max(best, minimax(b, false));
+          b[i] = "";
+        }
+      }
+      return best;
+    }
+
+    let best = Infinity;
+    for (let i = 0; i < 9; i++) {
+      if (b[i] === "") {
+        b[i] = PLAYER;
+        best = Math.min(best, minimax(b, true));
+        b[i] = "";
+      }
+    }
+    return best;
+  }
+
+  function getBestMove(b) {
+    let bestScore = -Infinity;
+    let move = -1;
+
+    for (let i = 0; i < 9; i++) {
+      if (b[i] === "") {
+        b[i] = ALMAS;
+        const score = minimax(b, false);
+        b[i] = "";
+        if (score > bestScore) {
+          bestScore = score;
+          move = i;
+        }
+      }
+    }
+    return move;
+  }
+
+  /* ---- UI updates ---- */
+  function setStatus(message, type = "") {
+    statusEl.textContent = message;
+    statusEl.className = "game-status";
+    if (type) statusEl.classList.add(type);
+  }
+
+  function renderBoard() {
+    cells.forEach((cell, i) => {
+      const value = board[i];
+      cell.textContent = value;
+      cell.classList.remove("ttt-cell--x", "ttt-cell--o", "ttt-cell--win");
+      cell.disabled = gameOver || waitingForBot || value !== "";
+
+      if (value === PLAYER) cell.classList.add("ttt-cell--x");
+      if (value === ALMAS) cell.classList.add("ttt-cell--o");
+    });
+  }
+
+  function highlightWin(line) {
+    line.forEach((i) => cells[i].classList.add("ttt-cell--win"));
+  }
+
+  function endGame(winner) {
+    gameOver = true;
+    const winLine = getWinningLine(board);
+
+    if (winner === PLAYER) {
+      scores.you += 1;
+      saveScores();
+      renderScores();
+      if (winLine) highlightWin(winLine);
+      setStatus("You win! Impressive — but Almas will be ready for a rematch.", "is-win");
+    } else if (winner === ALMAS) {
+      scores.almas += 1;
+      saveScores();
+      renderScores();
+      if (winLine) highlightWin(winLine);
+      setStatus("Almas wins. Perfect play — try again?", "is-lose");
+    } else {
+      setStatus("Draw. Almas never slips — a tie is the best many can do.", "is-draw");
+    }
+
+    cells.forEach((cell) => {
+      cell.disabled = true;
+    });
+  }
+
+  function resetRound() {
+    board = Array(9).fill("");
+    gameOver = false;
+    waitingForBot = false;
+    renderBoard();
+    setStatus("Your turn — make the first move.");
+  }
+
+  function handleCellClick(index) {
+    if (gameOver || waitingForBot || board[index] !== "") return;
+
+    board[index] = PLAYER;
+    renderBoard();
+
+    const winner = getWinner(board);
+    if (winner) {
+      endGame(winner);
+      return;
+    }
+    if (isDraw(board)) {
+      endGame(null);
+      return;
+    }
+
+    waitingForBot = true;
+    renderBoard();
+    setStatus("Almas is thinking…");
+
+    // Brief delay so the bot move feels natural
+    window.setTimeout(() => {
+      const move = getBestMove(board);
+      waitingForBot = false;
+
+      if (move === -1) {
+        renderBoard();
+        return;
+      }
+
+      board[move] = ALMAS;
+      renderBoard();
+
+      const w = getWinner(board);
+      if (w) {
+        endGame(w);
+      } else if (isDraw(board)) {
+        endGame(null);
+      } else {
+        setStatus("Your turn.");
+      }
+    }, 420);
+  }
+
+  /* ---- Modal open / close ---- */
+  function openModal() {
+    modal.removeAttribute("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    modal.classList.add("is-open");
+    document.body.style.overflow = "hidden";
+    resetRound();
+    playBtn.blur();
+  }
+
+  function closeModal() {
+    modal.classList.remove("is-open");
+    modal.setAttribute("aria-hidden", "true");
+    modal.setAttribute("hidden", "");
+    document.body.style.overflow = "hidden"; /* landing page keeps hidden overflow */
+  }
+
+  /* ---- Event listeners ---- */
+  playBtn.addEventListener("click", openModal);
+  closeBtn.addEventListener("click", closeModal);
+  resetBtn.addEventListener("click", resetRound);
+
+  cells.forEach((cell) => {
+    cell.addEventListener("click", () => {
+      const index = Number(cell.dataset.index);
+      handleCellClick(index);
+    });
+  });
+
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal.classList.contains("is-open")) {
+      closeModal();
+    }
+  });
+
+  renderScores();
+})();
